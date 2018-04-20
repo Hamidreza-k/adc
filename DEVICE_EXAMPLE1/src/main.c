@@ -58,7 +58,9 @@ void configure_adc_callbacks(void);
 void adc_complete_callback(struct adc_module *const module);
 void tc_callback(struct tc_module *const module_inst);
 
-#define ADC_SAMPLES 8192
+#define ADC_SAMPLES 4096
+#define SAMPLE_RATE	4096
+
 int16_t adc_result_buffer[ADC_SAMPLES];
 
 volatile bool adc_read_done = false;
@@ -107,9 +109,11 @@ void configure_adc(void)
 	config_adc.differential_mode = true;
 	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN0;
 	config_adc.negative_input = ADC_NEGATIVE_INPUT_PIN4;
-	//config_adc.positive_input  = ADC_POSITIVE_INPUT_PIN6;
-	config_adc.resolution      = ADC_RESOLUTION_14BIT;
+	config_adc.resolution      = ADC_RESOLUTION_15BIT;
 
+	//config_adc.accumulate_samples  = ADC_ACCUMULATE_SAMPLES_64;
+	//config_adc.divide_result = ADC_DIVIDE_RESULT_8;
+	
 	adc_init(&adc_instance, ADC, &config_adc);
 	adc_enable(&adc_instance);
 
@@ -145,21 +149,19 @@ void adc_complete_callback(struct adc_module *const module)
 	//adc_read_done = true;
 	adc_read_buffer_job(&adc_instance, adc_result_buffer, ADC_SAMPLES);
 	counter += ADC_SAMPLES;
-	if(counter >= 8192)
+	
+	if(counter >= SAMPLE_RATE)
 	{
-		
-		/* Data received */
 		ui_com_tx_start();
-		for(i=0;i<ADC_SAMPLES;i++)
+		if (!udi_cdc_is_tx_ready())
 		{
-			/* Transfer UART RX fifo to CDC TX */
-			if (!udi_cdc_is_tx_ready()) {
-				/* Fifo full */
-				udi_cdc_signal_overrun();
-				ui_com_overflow();
-				} else {
-				udi_cdc_putc(adc_result_buffer[i]);
-			}
+			/* Fifo full */
+			udi_cdc_signal_overrun();
+			ui_com_overflow();
+		}
+		else
+		{
+			udi_cdc_write_buf((uint8_t*)adc_result_buffer, SAMPLE_RATE * 2);
 		}
 		ui_com_tx_stop();
 		
@@ -169,7 +171,7 @@ void adc_complete_callback(struct adc_module *const module)
 
 void tc_callback(struct tc_module *const module_inst)
 {
-	module_inst->hw->COUNT16.COUNT.reg = 65535 - (500000 / 8192);		//EXECUTION_TIMER_PERIOD sec period
+	module_inst->hw->COUNT16.COUNT.reg = 65535 - (500000 / SAMPLE_RATE);		//EXECUTION_TIMER_PERIOD sec period
 	
 	adc_start_conversion(&adc_instance);
 }

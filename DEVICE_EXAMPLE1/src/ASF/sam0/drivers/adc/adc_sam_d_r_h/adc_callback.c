@@ -68,15 +68,15 @@ static void _adc_interrupt_handler(const uint8_t instance)
 			*(module->job_buffer++) = module->hw->RESULT.reg;
 
 			if (--module->remaining_conversions > 0) {
-				if (module->software_trigger == true) {
+				//if (module->software_trigger == true) {
 					//adc_start_conversion(module);
-				}
+				//}
 			} else {
 				if (module->job_status == STATUS_BUSY) {
 					/* job is complete. update status,disable interrupt
 					 *and call callback */
 					module->job_status = STATUS_OK;
-					adc_disable_interrupt(module, ADC_INTERRUPT_RESULT_READY);
+					//adc_disable_interrupt(module, ADC_INTERRUPT_RESULT_READY);
 
 					(module->callback[ADC_CALLBACK_READ_BUFFER])(module);
 				}
